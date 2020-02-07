@@ -1,9 +1,8 @@
-
-
 #include "SPI.h"
 #include <FlexCAN_T4.h>
 #include <ILI9341_t3n.h>
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can0;
+CAN_message_t msgTx, msgRx;
 
 #define COLOR_RED   ILI9341_RED
 #define COLOR_GREEN ILI9341_GREEN
@@ -98,11 +97,7 @@ void setup() {
   Can0.begin();
   Can0.setBaudRate(500000);
   Can0.setMBFilter(MB0,0x7E8);
-  Can0.setMBFilter(MB1,0x7E8);
-  Can0.setMBFilter(MB2,0x7E8);
   Can0.enableMBInterrupt(MB0);
-  Can0.enableMBInterrupt(MB1);
-  Can0.enableMBInterrupt(MB2);
   Can0.onReceive(canSniff);
 
 
@@ -128,13 +123,11 @@ void setup() {
 
 
 const long loopDelay1 = 10;
-const long loopDelay2 = 500;
 unsigned long timeNow1, timeNow2 = 0;
-float canData [2]; //place up to date CAN data into this array
+float canData [2] ; //place up to date CAN data into this array
 
 int boost_percent;
 float boost_pressuer, boost_final;
-float afr;
 
 void loop(void) {
     if(millis() > timeNow1 + loopDelay1){
@@ -142,6 +135,7 @@ void loop(void) {
         elapsedMillis em = 0; 
         canSend(INTAKE_MANIFOLD_ABSOLUTE_PRESSURE);
         canSend(ABSOLULTE_BAROMETRIC_PRESSURE);
+        Can0.events();
         Serial.printf("elapsed PID loop poll %u\n", (uint32_t)em);
         em = 0;
     }
@@ -189,7 +183,7 @@ void loop(void) {
 
 void canSend(uint16_t pid){  //Send the PID requests
   elapsedMillis em1 = 0; 
-  CAN_message_t msgTx, msgRx;
+
   
   msgTx.buf[0] = 0x02;  // Two bytes in the request
   msgTx.buf[1] = 0x01; // OBD mode 1
@@ -233,7 +227,14 @@ void canSniff(const CAN_message_t &msg) { // global callback
             break;                  
         }
       }
-
+    Serial.print("MB: "); Serial.print(msg.mb);
+    Serial.print("  ID: 0x"); Serial.print(msg.id, HEX );
+    Serial.print("  EXT: "); Serial.print(msg.flags.extended );
+    Serial.print("  LEN: "); Serial.print(msg.len);
+    Serial.print(" DATA: ");
+    for ( uint8_t i = 0; i < 8; i++ ) {
+      Serial.print(msg.buf[i]); Serial.print(" ");
+    }
 }
 
 
